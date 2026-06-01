@@ -291,9 +291,9 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func flagsToArgs(flags map[string]string) []string {
-	args := make([]string, 0, len(flags)*2)
+	args := make([]string, 0, len(flags))
 	for k, v := range flags {
-		args = append(args, "--"+k, v)
+		args = append(args, "--"+k+"="+v)
 	}
 	return args
 }
