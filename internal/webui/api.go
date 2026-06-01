@@ -255,7 +255,7 @@ func handleFuzzRoutes(w http.ResponseWriter, r *http.Request) {
 		perPage = 50
 	}
 
-	sortBy    := r.URL.Query().Get("sort")
+	sortBy := r.URL.Query().Get("sort")
 	sortOrder := r.URL.Query().Get("order")
 
 	var filterStatuses []int
