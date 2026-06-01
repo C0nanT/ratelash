@@ -57,7 +57,8 @@ func (f *Fuzz) Run(ctx context.Context, base attacks.Base) (attacks.Report, erro
 	if u.Scheme == "" || u.Host == "" {
 		return nil, fmt.Errorf("fuzz: base url must include scheme + host")
 	}
-	baseURL := strings.TrimRight(u.Scheme+"://"+u.Host, "/")
+	basePath := strings.TrimRight(u.Path, "/")
+	baseURL := u.Scheme + "://" + u.Host
 
 	var wl *metrics.Wordlist
 	if f.wordlist != "" {
@@ -76,27 +77,28 @@ func (f *Fuzz) Run(ctx context.Context, base attacks.Base) (attacks.Report, erro
 
 	cacheBust := f.cacheBust
 	build := func(ctx context.Context, _ int) (*http.Request, string, error) {
-		path := wl.Next()
-		full := baseURL + path
+		wordPath := wl.Next()
+		fullPath := basePath + wordPath
+		full := baseURL + fullPath
 		if cacheBust {
 			var buf [8]byte
 			_, _ = rand.Read(buf[:])
 			sep := "?"
-			if strings.Contains(path, "?") {
+			if strings.Contains(fullPath, "?") {
 				sep = "&"
 			}
 			full = full + sep + "_cb=" + hex.EncodeToString(buf[:])
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, full, nil)
 		if err != nil {
-			return nil, path, err
+			return nil, fullPath, err
 		}
 		for k, vs := range base.Common.Headers {
 			for _, v := range vs {
 				req.Header.Add(k, v)
 			}
 		}
-		return req, path, nil
+		return req, fullPath, nil
 	}
 
 	tag := fmt.Sprintf("fuzz (paths=%d cache-bust=%v)", wl.Size(), f.cacheBust)

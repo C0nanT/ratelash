@@ -1128,7 +1128,7 @@ function renderFuzzRoutes(r) {
   const tbody   = document.getElementById('result-fuzz-tbody');
   const countEl = document.getElementById('result-fuzz-count');
 
-  const baseURL = (r.target || '').replace(/\/$/, '');
+  const baseURL = (() => { try { return new URL(r.target || '').origin; } catch { return (r.target || '').replace(/\/.*$/, ''); } })();
   const pathStatus = r.path_status || {};
 
   // Sort by total hits desc; show all paths that got any response
