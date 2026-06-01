@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/conantorreswf/limithit/internal/attacks"
@@ -42,8 +43,9 @@ type runRequest struct {
 
 // donePayload wraps the final report sent in the "done" SSE event.
 type donePayload struct {
-	Type   string          `json:"type"`
-	Report json.RawMessage `json:"report"`
+	Type      string          `json:"type"`
+	Report    json.RawMessage `json:"report"`
+	FuzzRunID string          `json:"fuzz_run_id,omitempty"`
 }
 
 func handleAttacks(w http.ResponseWriter, r *http.Request) {
@@ -202,17 +204,81 @@ func sseDone(w io.Writer, f http.Flusher, rep attacks.Report) {
 		payload.Type = "unknown"
 	}
 
-	var buf []byte
-	if j, err := json.Marshal(rep); err == nil {
-		buf = j
-	} else {
+	buf, err := json.Marshal(rep)
+	if err != nil {
 		buf = []byte(`{}`)
 	}
-	payload.Report = json.RawMessage(buf)
 
+	// For fuzz: persist routes to SQLite, strip path_status from SSE payload.
+	if r, ok := rep.(*metrics.Report); ok && r.Attack == "fuzz" && len(r.PathStatus) > 0 && globalFuzzDB != nil {
+		runID := newRunID()
+		_ = globalFuzzDB.clearDB()
+		_ = globalFuzzDB.saveRoutes(runID, r.PathStatus)
+		payload.FuzzRunID = runID
+		var raw map[string]json.RawMessage
+		if json.Unmarshal(buf, &raw) == nil {
+			delete(raw, "path_status")
+			if b, err := json.Marshal(raw); err == nil {
+				buf = b
+			}
+		}
+	}
+
+	payload.Report = json.RawMessage(buf)
 	data, _ := json.Marshal(payload)
 	fmt.Fprintf(w, "event: done\ndata: %s\n\n", data)
 	f.Flush()
+}
+
+func handleFuzzRoutes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if globalFuzzDB == nil {
+		http.Error(w, "fuzz store not available", http.StatusInternalServerError)
+		return
+	}
+
+	runID := r.URL.Query().Get("run_id")
+	if runID == "" {
+		http.Error(w, "run_id required", http.StatusBadRequest)
+		return
+	}
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
+	if perPage < 1 || perPage > 500 {
+		perPage = 50
+	}
+
+	sortBy    := r.URL.Query().Get("sort")
+	sortOrder := r.URL.Query().Get("order")
+
+	var filterStatuses []int
+	if statusQ := r.URL.Query().Get("status"); statusQ != "" {
+		for _, s := range strings.Split(statusQ, ",") {
+			if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n > 0 {
+				filterStatuses = append(filterStatuses, n)
+			}
+		}
+	}
+
+	result, err := globalFuzzDB.queryRoutes(runID, page, perPage, queryOpts{
+		SortBy:       sortBy,
+		SortOrder:    sortOrder,
+		FilterStatus: filterStatuses,
+	})
+	if err != nil {
+		http.Error(w, "query: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 // sseError emits an "error" SSE event.

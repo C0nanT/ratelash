@@ -322,6 +322,60 @@
     gap: 8px;
   }
 
+  .fuzz-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .fuzz-ctrl-group { display: flex; align-items: center; gap: 6px; }
+  .fuzz-ctrl-label { font-size: 9px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+  .fuzz-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .fuzz-chip {
+    cursor: pointer;
+    user-select: none;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: opacity .15s;
+  }
+  .fuzz-chip.off { opacity: .25; }
+  .fuzz-chip-2xx   { background: rgba(63,185,80,.15);  color: var(--green);      border-color: rgba(63,185,80,.3); }
+  .fuzz-chip-3xx   { background: rgba(88,166,255,.12); color: var(--accent);     border-color: rgba(88,166,255,.3); }
+  .fuzz-chip-4xx   { background: rgba(227,179,65,.12); color: var(--yellow);     border-color: rgba(227,179,65,.3); }
+  .fuzz-chip-5xx   { background: rgba(248,81,73,.12);  color: var(--red);        border-color: rgba(248,81,73,.3); }
+  .fuzz-chip-other { background: rgba(110,119,129,.12);color: var(--text-muted); border-color: rgba(110,119,129,.3); }
+
+  .fuzz-pagination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .btn-page {
+    background: var(--bg-input);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius);
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    transition: border-color .15s;
+  }
+  .btn-page:hover:not(:disabled) { border-color: var(--accent); }
+  .btn-page:disabled { opacity: .4; cursor: default; }
+  .fuzz-page-select { width: auto !important; font-size: 11px !important; padding: 4px 24px 4px 8px !important; }
+  .fuzz-total-info { margin-left: auto; color: var(--text-dim); font-size: 10px; }
+
   .hidden { display: none !important; }
 
   .file-pick-wrap { display: flex; gap: 6px; align-items: center; }
@@ -489,6 +543,21 @@
             <div class="section-title" data-i18n="fuzzRoutes">Discovered routes</div>
             <div class="route-found-badge" id="result-fuzz-count"></div>
           </div>
+          <div class="fuzz-controls hidden" id="fuzz-controls">
+            <div class="fuzz-ctrl-group">
+              <span class="fuzz-ctrl-label" data-i18n="fuzzFilter">Filter:</span>
+              <div class="fuzz-chips" id="fuzz-status-chips"></div>
+            </div>
+            <div class="fuzz-ctrl-group" style="margin-left:auto">
+              <span class="fuzz-ctrl-label" data-i18n="fuzzSort">Sort:</span>
+              <select class="fuzz-page-select" id="fuzz-sort-by" onchange="onFuzzSortChange()">
+                <option value="hits" data-i18n="fuzzSortHits">Hits</option>
+                <option value="status" data-i18n="fuzzSortStatus">Status code</option>
+                <option value="path" data-i18n="fuzzSortPath">Path</option>
+              </select>
+              <button class="btn-page" id="fuzz-sort-dir" onclick="onFuzzSortDirToggle()">↓</button>
+            </div>
+          </div>
           <table class="route-table">
             <thead>
               <tr>
@@ -499,6 +568,17 @@
             </thead>
             <tbody id="result-fuzz-tbody"></tbody>
           </table>
+          <div class="fuzz-pagination hidden" id="fuzz-pagination">
+            <button class="btn-page" id="fuzz-prev" onclick="fuzzGotoPage(fuzzPage - 1)">← Prev</button>
+            <span id="fuzz-page-info">Page 1 of 1</span>
+            <button class="btn-page" id="fuzz-next" onclick="fuzzGotoPage(fuzzPage + 1)">Next →</button>
+            <select class="fuzz-page-select" id="fuzz-per-page" onchange="onFuzzPerPageChange(this.value)">
+              <option value="25">25 / page</option>
+              <option value="50" selected>50 / page</option>
+              <option value="100">100 / page</option>
+            </select>
+            <span class="fuzz-total-info" id="fuzz-total-info"></span>
+          </div>
         </div>
 
         <div class="error-box hidden" id="result-error">
@@ -567,7 +647,12 @@ const i18n = {
     fuzzColURL: 'URL',
     fuzzColStatus: 'Status',
     fuzzColHits: 'Hits',
-    fuzzNoneFound: 'No 2xx routes found.',
+    fuzzNoneFound: 'No routes found.',
+    fuzzFilter: 'Filter:',
+    fuzzSort: 'Sort:',
+    fuzzSortHits: 'Hits',
+    fuzzSortStatus: 'Status code',
+    fuzzSortPath: 'Path',
   },
   pt: {
     attacks: 'Ataques',
@@ -700,7 +785,12 @@ const i18n = {
     fuzzColURL: 'URL',
     fuzzColStatus: 'Status',
     fuzzColHits: 'Acessos',
-    fuzzNoneFound: 'Nenhuma rota 2xx encontrada.',
+    fuzzNoneFound: 'Nenhuma rota encontrada.',
+    fuzzFilter: 'Filtrar:',
+    fuzzSort: 'Ordenar:',
+    fuzzSortHits: 'Acessos',
+    fuzzSortStatus: 'Status code',
+    fuzzSortPath: 'Caminho',
   },
 };
 
@@ -759,6 +849,15 @@ let allAttacks = [];
 let selected = null;
 let abortCtrl = null;
 let running = false;
+
+let fuzzRunID        = null;
+let fuzzPage         = 1;
+let fuzzPerPage      = 50;
+let fuzzBaseURL      = '';
+let fuzzSortBy       = 'hits';
+let fuzzSortOrder    = 'desc';
+let fuzzStatusFilter = null;  // null = all; int[] = only these codes
+let fuzzAllStatuses  = [];
 
 const urlDefaults = {
   flood:       'http://localhost:8080/api/ping',
@@ -1063,13 +1162,13 @@ function finishProgress() {
 
 // ─── result rendering ─────────────────────────────────────────────────────
 function renderResult(payload) {
-  const {type, report} = payload;
-  if (type === 'http')       renderHTTPResult(report);
+  const {type, report, fuzz_run_id} = payload;
+  if (type === 'http')       renderHTTPResult(report, fuzz_run_id);
   else if (type === 'conn')  renderConnResult(report);
   document.getElementById('btn-clear').classList.remove('hidden');
 }
 
-function renderHTTPResult(r) {
+function renderHTTPResult(r, fuzzRunIDArg) {
   document.getElementById('result-http').classList.remove('hidden');
 
   const badge = document.getElementById('result-http-badge');
@@ -1118,49 +1217,182 @@ function renderHTTPResult(r) {
       }).join('');
   }
 
-  if (r.attack === 'fuzz' && r.path_status && Object.keys(r.path_status).length > 0) {
-    renderFuzzRoutes(r);
+  if (r.attack === 'fuzz') {
+    if (fuzzRunIDArg) {
+      initFuzzTable(fuzzRunIDArg, r.target);
+    } else if (r.path_status && Object.keys(r.path_status).length > 0) {
+      renderFuzzRoutesDirect(r);
+    }
   }
 }
 
-function renderFuzzRoutes(r) {
-  const section = document.getElementById('result-fuzz-routes');
-  const tbody   = document.getElementById('result-fuzz-tbody');
-  const countEl = document.getElementById('result-fuzz-count');
+// ─── fuzz pagination ──────────────────────────────────────────────────────
+function initFuzzTable(runID, target) {
+  fuzzRunID   = runID;
+  fuzzPage    = 1;
+  fuzzBaseURL = (() => {
+    try { return new URL(target || '').origin; }
+    catch { return (target || '').replace(/\/.*$/, ''); }
+  })();
+  loadFuzzPage();
+}
 
-  const baseURL = (() => { try { return new URL(r.target || '').origin; } catch { return (r.target || '').replace(/\/.*$/, ''); } })();
+async function loadFuzzPage() {
+  if (!fuzzRunID) return;
+  try {
+    let url = `/api/fuzz-routes?run_id=${encodeURIComponent(fuzzRunID)}&page=${fuzzPage}&per_page=${fuzzPerPage}&sort=${fuzzSortBy}&order=${fuzzSortOrder}`;
+    if (fuzzStatusFilter && fuzzStatusFilter.length > 0) {
+      url += `&status=${fuzzStatusFilter.join(',')}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(await res.text());
+    renderFuzzTable(await res.json());
+  } catch(e) {
+    console.error('fuzz routes:', e);
+  }
+}
+
+function renderFuzzTable(data) {
+  const tbody      = document.getElementById('result-fuzz-tbody');
+  const countEl    = document.getElementById('result-fuzz-count');
+  const section    = document.getElementById('result-fuzz-routes');
+  const pagination = document.getElementById('fuzz-pagination');
+  const pageInfo   = document.getElementById('fuzz-page-info');
+  const prevBtn    = document.getElementById('fuzz-prev');
+  const nextBtn    = document.getElementById('fuzz-next');
+  const totalInfo  = document.getElementById('fuzz-total-info');
+
+  fuzzPage = data.page;
+  countEl.textContent = data.found_2xx + ' found';
+
+  // Build filter chips on first render (or if statuses changed)
+  if (data.available_statuses && data.available_statuses.length > 0 && fuzzAllStatuses.length === 0) {
+    buildFuzzFilterChips(data.available_statuses);
+  } else {
+    updateFuzzChipStates();
+  }
+
+  if (data.rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:12px">${t('fuzzNoneFound')}</td></tr>`;
+  } else {
+    tbody.innerHTML = data.rows.map(row => {
+      const fullURL = fuzzBaseURL + row.path;
+      const chips = Object.entries(row.statuses)
+        .sort(([a],[b]) => parseInt(a) - parseInt(b))
+        .map(([code, cnt]) => {
+          const c = parseInt(code);
+          const cls = c >= 200 && c < 300 ? 'route-badge-2xx'
+            : c >= 300 && c < 400 ? 'route-badge-3xx'
+            : c >= 400 && c < 500 ? 'route-badge-4xx'
+            : 'route-badge-5xx';
+          return `<span class="${cls}">${code} ×${cnt}</span>`;
+        }).join('');
+      return `<tr>
+        <td><a class="route-link" href="${escHtml(fullURL)}" target="_blank" rel="noopener noreferrer">${escHtml(fullURL)}</a></td>
+        <td><div class="route-status-chips">${chips}</div></td>
+        <td class="route-count">${row.total_hits}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  pageInfo.textContent = `Page ${data.page} of ${data.total_pages}`;
+  prevBtn.disabled = data.page <= 1;
+  nextBtn.disabled = data.page >= data.total_pages;
+  totalInfo.textContent = `${data.total} routes`;
+
+  pagination.classList.toggle('hidden', data.total <= fuzzPerPage);
+  section.classList.remove('hidden');
+}
+
+function buildFuzzFilterChips(statuses) {
+  fuzzAllStatuses = statuses;
+  const container = document.getElementById('fuzz-status-chips');
+  container.innerHTML = statuses.map(sc => {
+    const c = parseInt(sc);
+    const cls = c >= 500 ? 'fuzz-chip-5xx'
+      : c >= 400 ? 'fuzz-chip-4xx'
+      : c >= 300 ? 'fuzz-chip-3xx'
+      : c >= 200 ? 'fuzz-chip-2xx'
+      : 'fuzz-chip-other';
+    return `<span class="fuzz-chip ${cls}" data-sc="${sc}" onclick="toggleFuzzStatus(${sc})">${sc}</span>`;
+  }).join('');
+  document.getElementById('fuzz-controls').classList.remove('hidden');
+}
+
+function toggleFuzzStatus(sc) {
+  if (!fuzzStatusFilter) {
+    // All visible → isolate everything except clicked
+    fuzzStatusFilter = fuzzAllStatuses.filter(s => s !== sc);
+  } else {
+    const idx = fuzzStatusFilter.indexOf(sc);
+    if (idx >= 0) {
+      fuzzStatusFilter = fuzzStatusFilter.filter(s => s !== sc);
+      if (fuzzStatusFilter.length === 0) fuzzStatusFilter = [sc]; // prevent empty
+    } else {
+      fuzzStatusFilter = [...fuzzStatusFilter, sc];
+      if (fuzzStatusFilter.length === fuzzAllStatuses.length) fuzzStatusFilter = null; // all = no filter
+    }
+  }
+  updateFuzzChipStates();
+  fuzzPage = 1;
+  loadFuzzPage();
+}
+
+function updateFuzzChipStates() {
+  document.querySelectorAll('.fuzz-chip').forEach(el => {
+    const active = !fuzzStatusFilter || fuzzStatusFilter.includes(parseInt(el.dataset.sc));
+    el.classList.toggle('off', !active);
+  });
+}
+
+function onFuzzSortChange() {
+  fuzzSortBy = document.getElementById('fuzz-sort-by').value;
+  fuzzPage   = 1;
+  loadFuzzPage();
+}
+
+function onFuzzSortDirToggle() {
+  fuzzSortOrder = fuzzSortOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('fuzz-sort-dir').textContent = fuzzSortOrder === 'desc' ? '↓' : '↑';
+  fuzzPage = 1;
+  loadFuzzPage();
+}
+
+function fuzzGotoPage(page) {
+  if (!fuzzRunID) return;
+  fuzzPage = Math.max(1, page);
+  loadFuzzPage();
+}
+
+function onFuzzPerPageChange(val) {
+  fuzzPerPage = parseInt(val, 10) || 50;
+  fuzzPage    = 1;
+  loadFuzzPage();
+}
+
+// Fallback: render fuzz routes directly from report (no SQLite).
+function renderFuzzRoutesDirect(r) {
+  const baseURL    = (() => { try { return new URL(r.target || '').origin; } catch { return (r.target || '').replace(/\/.*$/, ''); } })();
   const pathStatus = r.path_status || {};
-
-  // Sort by total hits desc; show all paths that got any response
   const rows = Object.entries(pathStatus).map(([path, statuses]) => {
     const total = Object.values(statuses).reduce((s, v) => s + v, 0);
     const has2xx = Object.keys(statuses).some(c => parseInt(c) >= 200 && parseInt(c) < 300);
     return { path, statuses, total, has2xx };
-  });
+  }).sort((a, b) => { if (a.has2xx !== b.has2xx) return a.has2xx ? -1 : 1; return b.total - a.total; });
 
-  // Show 2xx first, then rest; within each group sort by total desc
-  rows.sort((a, b) => {
-    if (a.has2xx !== b.has2xx) return a.has2xx ? -1 : 1;
-    return b.total - a.total;
-  });
+  document.getElementById('result-fuzz-count').textContent = rows.filter(r => r.has2xx).length + ' found';
 
-  const found2xx = rows.filter(r => r.has2xx).length;
-  countEl.textContent = found2xx + ' found';
-
+  const tbody = document.getElementById('result-fuzz-tbody');
   if (rows.length === 0) {
     tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:12px">${t('fuzzNoneFound')}</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(({ path, statuses, total }) => {
       const fullURL = baseURL + path;
-      const chips = Object.entries(statuses)
-        .sort(([a],[b]) => parseInt(a) - parseInt(b))
-        .map(([code, cnt]) => {
-          const cls = parseInt(code) >= 200 && parseInt(code) < 300 ? 'route-badge-2xx'
-            : parseInt(code) >= 300 && parseInt(code) < 400 ? 'route-badge-3xx'
-            : parseInt(code) >= 400 && parseInt(code) < 500 ? 'route-badge-4xx'
-            : parseInt(code) >= 500 ? 'route-badge-5xx' : 'route-badge-4xx';
-          return `<span class="${cls}">${code} ×${cnt}</span>`;
-        }).join('');
+      const chips = Object.entries(statuses).sort(([a],[b]) => parseInt(a)-parseInt(b)).map(([code, cnt]) => {
+        const c = parseInt(code);
+        const cls = c>=200&&c<300?'route-badge-2xx':c>=300&&c<400?'route-badge-3xx':c>=400&&c<500?'route-badge-4xx':'route-badge-5xx';
+        return `<span class="${cls}">${code} ×${cnt}</span>`;
+      }).join('');
       return `<tr>
         <td><a class="route-link" href="${escHtml(fullURL)}" target="_blank" rel="noopener noreferrer">${escHtml(fullURL)}</a></td>
         <td><div class="route-status-chips">${chips}</div></td>
@@ -1168,8 +1400,7 @@ function renderFuzzRoutes(r) {
       </tr>`;
     }).join('');
   }
-
-  section.classList.remove('hidden');
+  document.getElementById('result-fuzz-routes').classList.remove('hidden');
 }
 
 function renderConnResult(r) {
@@ -1209,10 +1440,21 @@ function clearResults() {
   ['result-http','result-conn','result-error','progress-section','result-fuzz-routes'].forEach(id => {
     document.getElementById(id).classList.add('hidden');
   });
+  document.getElementById('fuzz-pagination').classList.add('hidden');
+  document.getElementById('fuzz-controls').classList.add('hidden');
   document.getElementById('result-error-msg').textContent = '';
   document.getElementById('btn-clear').classList.add('hidden');
   document.querySelectorAll('.warn-box').forEach(el => el.style.borderColor = '');
   document.querySelectorAll('[data-kind="url"]').forEach(el => el.style.borderColor = '');
+  fuzzRunID        = null;
+  fuzzPage         = 1;
+  fuzzSortBy       = 'hits';
+  fuzzSortOrder    = 'desc';
+  fuzzStatusFilter = null;
+  fuzzAllStatuses  = [];
+  document.getElementById('fuzz-sort-by').value              = 'hits';
+  document.getElementById('fuzz-sort-dir').textContent       = '↓';
+  document.getElementById('fuzz-status-chips').innerHTML     = '';
 }
 
 function setRunning(val) {
