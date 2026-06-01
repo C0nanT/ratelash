@@ -1267,7 +1267,12 @@ function renderFuzzTable(data) {
 
   // Build filter chips on first render (or if statuses changed)
   if (data.available_statuses && data.available_statuses.length > 0 && fuzzAllStatuses.length === 0) {
+    const preFilter = fuzzStatusFilter;
     buildFuzzFilterChips(data.available_statuses);
+    if (preFilter === null && fuzzStatusFilter !== null) {
+      loadFuzzPage();
+      return;
+    }
   } else {
     updateFuzzChipStates();
   }
@@ -1306,6 +1311,10 @@ function renderFuzzTable(data) {
 
 function buildFuzzFilterChips(statuses) {
   fuzzAllStatuses = statuses;
+  if (statuses.includes(404) && fuzzStatusFilter === null) {
+    fuzzStatusFilter = statuses.filter(s => s !== 404);
+    if (fuzzStatusFilter.length === 0) fuzzStatusFilter = null;
+  }
   const container = document.getElementById('fuzz-status-chips');
   container.innerHTML = statuses.map(sc => {
     const c = parseInt(sc);
@@ -1317,6 +1326,7 @@ function buildFuzzFilterChips(statuses) {
     return `<span class="fuzz-chip ${cls}" data-sc="${sc}" onclick="toggleFuzzStatus(${sc})">${sc}</span>`;
   }).join('');
   document.getElementById('fuzz-controls').classList.remove('hidden');
+  updateFuzzChipStates();
 }
 
 function toggleFuzzStatus(sc) {
