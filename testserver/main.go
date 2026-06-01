@@ -161,8 +161,13 @@ func main() {
 	mux.Handle("/api/gzip", limited(handler.NewGzipHandler(decomposeCap)))
 	mux.Handle("/ws/echo", handler.NewWsEchoHandler(*maxConns))
 
-	// catch-all: fuzz-discovered paths return JSON instead of dashboard HTML
-	mux.Handle("/", limited(http.HandlerFunc(handler.FuzzTargetHandler)))
+	// hidden routes — discoverable by fuzz but not advertised
+	for _, p := range []string{"/admin", "/api/users", "/api/status", "/api/config", "/api/health", "/api/v2/ping", "/api/internal"} {
+		mux.Handle(p, limited(http.HandlerFunc(handler.HiddenRouteHandler)))
+	}
+
+	// catch-all: 404 for anything else
+	mux.Handle("/", http.HandlerFunc(handler.NotFoundHandler))
 
 	// background broadcaster tick
 	go func() {
