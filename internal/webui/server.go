@@ -17,6 +17,7 @@ func Serve(ctx context.Context, addr string) error {
 
 	mux.HandleFunc("/api/attacks", handleAttacks)
 	mux.HandleFunc("/api/run", handleRun)
+	mux.HandleFunc("/api/upload", handleUpload)
 
 	sub, err := fs.Sub(staticFiles, "static")
 	if err != nil {

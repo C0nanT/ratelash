@@ -48,7 +48,7 @@ func (m *MethodSpray) FormFields() []attacks.FormField {
 	return []attacks.FormField{
 		{Flag: "url", Label: "Base URL", Help: "Scheme + host only; paths come from the wordlist", Kind: attacks.FieldURL, Default: "", Value: &url},
 		{Flag: "methods", Label: "HTTP methods (comma-separated)", Help: "Cross-product of methods × wordlist paths is sprayed", Kind: attacks.FieldString, Default: "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD", Value: &methods},
-		{Flag: "wordlist", Label: "Wordlist path (empty = built-in)", Kind: attacks.FieldString, Default: "", Value: &wordlist},
+		{Flag: "wordlist", Label: "Wordlist path (empty = built-in)", Kind: attacks.FieldFile, Default: "", Value: &wordlist},
 		{Flag: "total", Label: "Total requests", Kind: attacks.FieldInt, Default: "1000", Validate: attacks.ValidatePosInt, Value: &total},
 		{Flag: "concurrency", Label: "Concurrency (workers)", Kind: attacks.FieldInt, Default: "20", Validate: attacks.ValidatePosInt, Value: &concurrency},
 		{Flag: "timeout", Label: "Timeout (s)", Kind: attacks.FieldInt, Default: "10", Validate: attacks.ValidatePosInt, Value: &timeout},

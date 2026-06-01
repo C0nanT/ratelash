@@ -43,6 +43,7 @@ const (
 	FieldBool                    // yes/no select stored as "true"/"false"
 	FieldSelect                  // option dropdown; Choices must be non-empty
 	FieldWarn                    // full-page safety gate: note + acknowledge select
+	FieldFile                    // file path input with browser file picker in web UI
 )
 
 // FormField describes one interactive TUI form field for an attack.

@@ -48,7 +48,7 @@ func (r *Replay) FormFields() []attacks.FormField {
 	concurrency := "10"
 	loop := "false"
 	return []attacks.FormField{
-		{Flag: "file", Label: "Request file", Help: `HAR file or newline-delimited "METHOD URL" file`, Kind: attacks.FieldString, Default: "", Value: &file},
+		{Flag: "file", Label: "Request file", Help: `HAR file or newline-delimited "METHOD URL" file`, Kind: attacks.FieldFile, Default: "", Value: &file},
 		{Flag: "url", Label: "Base URL (report label)", Help: "Individual request URLs come from the file; this labels the report", Kind: attacks.FieldURL, Default: "", Value: &url},
 		{Flag: "total", Label: "Total requests (0 = file length)", Kind: attacks.FieldInt, Default: "0", Validate: attacks.ValidateNonNegInt, Value: &total},
 		{Flag: "concurrency", Label: "Concurrency (workers)", Kind: attacks.FieldInt, Default: "10", Validate: attacks.ValidatePosInt, Value: &concurrency},

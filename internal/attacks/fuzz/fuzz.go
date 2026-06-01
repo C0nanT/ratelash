@@ -44,7 +44,7 @@ func (f *Fuzz) FormFields() []attacks.FormField {
 		{Flag: "url", Label: "Base URL", Help: "Scheme + host; paths come from the wordlist", Kind: attacks.FieldURL, Default: "", Value: &url},
 		{Flag: "concurrency", Label: "Concurrency (workers)", Kind: attacks.FieldInt, Default: "20", Validate: attacks.ValidatePosInt, Value: &concurrency},
 		{Flag: "timeout", Label: "Timeout (s)", Kind: attacks.FieldInt, Default: "10", Validate: attacks.ValidatePosInt, Value: &timeout},
-		{Flag: "wordlist", Label: "Wordlist path (empty = built-in)", Kind: attacks.FieldString, Default: "", Value: &wordlist},
+		{Flag: "wordlist", Label: "Wordlist path (empty = built-in)", Kind: attacks.FieldFile, Default: "", Value: &wordlist},
 		{Flag: "cache-bust", Label: "Cache bust (append _cb=<hex>)", Kind: attacks.FieldBool, Default: "false", Value: &cacheBust},
 	}
 }

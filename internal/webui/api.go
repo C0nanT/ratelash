@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -250,9 +251,43 @@ func kindStr(k attacks.FieldKind) string {
 		return "select"
 	case attacks.FieldWarn:
 		return "warn"
+	case attacks.FieldFile:
+		return "file"
 	default:
 		return "string"
 	}
+}
+
+func handleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, "bad multipart: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	f, hdr, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "missing file field: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer f.Close()
+
+	tmp, err := os.CreateTemp("", "limithit-upload-*-"+hdr.Filename)
+	if err != nil {
+		http.Error(w, "create temp: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tmp.Close()
+
+	if _, err := io.Copy(tmp, f); err != nil {
+		http.Error(w, "write temp: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"path": tmp.Name()})
 }
 
 func flagsToArgs(flags map[string]string) []string {
