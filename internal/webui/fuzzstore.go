@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // register sqlite driver
 )
 
 type fuzzRouteRow struct {
@@ -102,14 +102,14 @@ func (s *fuzzDB) saveRoutes(runID string, pathStatus map[string]map[int]int) err
 
 	routeStmt, err := tx.Prepare(`INSERT INTO fuzz_routes(run_id, path, statuses, total_hits, has2xx, primary_status) VALUES (?,?,?,?,?,?)`)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 	defer routeStmt.Close()
 
 	scStmt, err := tx.Prepare(`INSERT INTO fuzz_route_statuses(run_id, path, status_code, hits) VALUES (?,?,?,?)`)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 	defer scStmt.Close()
@@ -135,12 +135,12 @@ func (s *fuzzDB) saveRoutes(runID string, pathStatus map[string]map[int]int) err
 
 		data, _ := json.Marshal(strStatuses)
 		if _, err := routeStmt.Exec(runID, path, string(data), total, has2xx, primaryStatus); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 		for code, cnt := range statusMap {
 			if _, err := scStmt.Exec(runID, path, code, cnt); err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 				return err
 			}
 		}
