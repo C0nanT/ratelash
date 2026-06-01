@@ -38,7 +38,7 @@ func HiddenRouteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // NotFoundHandler returns 404 for any unregistered path.
-func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+func NotFoundHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 	_, _ = w.Write([]byte(`{"error":"not found"}`))
